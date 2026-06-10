@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦆 꽥꽥 갤러리</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    .duck-img { transition: transform 0.4s; }
+    .duck-img:hover { transform: scale(1.05); }
+    .balloon { position: absolute; font-size: 2.8rem; pointer-events: none; animation: floatUp 2.8s forwards; }
+    @keyframes floatUp { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(-280px) rotate(25deg); opacity: 0; } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-yellow-50 to-orange-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white min-h-screen">
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-6xl font-bold text-center my-10">🦆 꽥꽥 갤러리</h1>
+
+    <div class="flex justify-center gap-10 mb-10 text-center">
+      <div><span id="viewCount" class="text-4xl font-bold">0</span><br>본 오리</div>
+      <div><span id="likeCount" class="text-4xl font-bold text-red-500">0</span><br>❤️ 좋아요</div>
+      <div><span id="saveCount" class="text-4xl font-bold text-blue-500">0</span><br>📁 저장</div>
+    </div>
+
+    <div class="flex gap-4 mb-8">
+      <button onclick="loadNewDuck()" 
+              class="flex-1 py-5 bg-orange-500 hover:bg-orange-600 text-white text-2xl font-bold rounded-3xl flex items-center justify-center gap-3">
+        <i class="fas fa-sync"></i> 새 오리 가져오기
+      </button>
+    </div>
+
+    <!-- 메인 이미지 -->
+    <div class="relative bg-white dark:bg-gray-800 rounded-3xl overflow-hidden shadow-2xl mb-10 cursor-pointer" onclick="createBalloon(event)">
+      <img id="mainImg" src="https://random-d.uk/api/1.jpg" 
+           class="duck-img w-full max-h-[65vh] object-contain mx-auto">
+    </div>
+
+    <div class="flex justify-center gap-8 text-3xl mb-12">
+      <button onclick="likeCurrent()" class="hover:scale-125 transition flex items-center gap-3">❤️ 좋아요</button>
+      <button onclick="saveCurrent()" class="hover:scale-125 transition flex items-center gap-3">📥 저장하기</button>
+      <button onclick="toggleAutoplay()" id="autoBtn" class="hover:scale-125 transition">⏱️ 자동재생</button>
+      <button onclick="toggleDarkMode()" class="hover:scale-125 transition">🌙</button>
+    </div>
+
+    <!-- 좋아요한 오리 -->
+    <h2 class="text-2xl font-bold mb-4">❤️ 좋아요한 오리들</h2>
+    <div id="likedList" class="flex flex-wrap gap-4 mb-12"></div>
+
+    <!-- 저장한 오리 -->
+    <h2 class="text-2xl font-bold mb-4">📁 저장한 오리들</h2>
+    <div id="savedList" class="flex flex-wrap gap-4"></div>
+  </div>
+
+  <script>
+    let currentUrl = "https://random-d.uk/api/1.jpg";
+    let viewCount = 0;
+    let likeCount = 0;
+    let autoInterval = null;
+    let isAuto = false;
+
+    let likedDucks = JSON.parse(localStorage.getItem('likedDucks') || '[]');
+    let savedDucks = JSON.parse(localStorage.getItem('savedDucks') || '[]');
+
+    function updateUI() {
+      document.getElementById('viewCount').textContent = viewCount;
+      document.getElementById('likeCount').textContent = likeCount;
+      document.getElementById('saveCount').textContent = savedDucks.length;
+      renderLists();
+    }
+
+    async function loadNewDuck() {
+      try {
+        const res = await fetch('https://random-d.uk/api/v2/random', { 
+          method: 'GET',
+          cache: 'no-cache'
+        });
+        if (!res.ok) throw new Error();
+        
+        const data = await res.json();
+        currentUrl = data.url;
+        document.getElementById('mainImg').src = currentUrl;
+        viewCount++;
+        updateUI();
+      } catch (e) {
+        // fallback
+        currentUrl = `https://random-d.uk/api/${Math.floor(Math.random()*300) + 1}.jpg`;
+        document.getElementById('mainImg').src = currentUrl;
+        viewCount++;
+        updateUI();
+      }
+    }
+
+    function createBalloon(e) {
+      const emojis = ['🦆', '🫧', '✨', '💛', '🌟'];
+      const balloon = document.createElement('div');
+      balloon.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      balloon.className = 'balloon';
+      balloon.style.left = `${e.offsetX - 30}px`;
+      balloon.style.top = `${e.offsetY - 40}px`;
+      e.currentTarget.appendChild(balloon);
+      setTimeout(() => balloon.remove(), 3000);
+    }
+
+    function likeCurrent() {
+      if (!currentUrl || likedDucks.includes(currentUrl)) return;
+      likedDucks.unshift(currentUrl); // 최신이 위로
+      localStorage.setItem('likedDucks', JSON.stringify(likedDucks));
+      likeCount++;
+      updateUI();
+    }
+
+    function saveCurrent() {
+      if (!currentUrl || savedDucks.includes(currentUrl)) return;
+      savedDucks.unshift(currentUrl);
+      localStorage.setItem('savedDucks', JSON.stringify(savedDucks));
+      updateUI();
+    }
+
+    function renderLists() {
+      // 좋아요 목록
+      const likedHTML = likedDucks.map(url => `
+        <img src="${url}" class="w-28 h-28 object-cover rounded-2xl shadow cursor-pointer" 
+             onclick="window.open('${url}', '_blank')">
+      `).join('');
+      document.getElementById('likedList').innerHTML = likedHTML || '<p class="text-gray-500">아직 좋아요한 오리가 없어요</p>';
+
+      // 저장 목록
+      const savedHTML = savedDucks.map(url => `
+        <img src="${url}" class="w-28 h-28 object-cover rounded-2xl shadow cursor-pointer" 
+             onclick="window.open('${url}', '_blank')">
+      `).join('');
+      document.getElementById('savedList').innerHTML = savedHTML || '<p class="text-gray-500">아직 저장한 오리가 없어요</p>';
+    }
+
+    function toggleAutoplay() {
+      isAuto = !isAuto;
+      const btn = document.getElementById('autoBtn');
+      if (isAuto) {
+        btn.innerHTML = '⏹️ 멈추기';
+        autoInterval = setInterval(loadNewDuck, 4500);
+      } else {
+        btn.innerHTML = '⏱️ 자동재생';
+        clearInterval(autoInterval);
+      }
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+    }
+
+    // 초기화
+    window.onload = () => {
+      updateUI();
+      // 처음 이미지 로드
+      loadNewDuck();
+    };
+  </script>
+</body>
+</html>
